@@ -1,5 +1,7 @@
 using UnityEngine;
+using UnityEngine.Audio;
 using UnityEngine.Pool;
+using UnityEngine.WSA;
 
 [RequireComponent(typeof(AudioSource))]
 public class ScriptPlayerShooterHandler : MonoBehaviour
@@ -43,17 +45,56 @@ public class ScriptPlayerShooterHandler : MonoBehaviour
 
     private ScriptPlayerProjectile CreateProjectile()
     {
-
-    }
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
-    {
-        
+        ScriptPlayerProjectile instance = Instantiate(projectilePrefab);
+        instance.SetPool(pool);
+        return instance;
     }
 
-    // Update is called once per frame
-    void Update()
+    private void OnGetProjectile(ScriptPlayerProjectile p) => p.gameObject.SetActive(true);
+
+    private void OnReleaseProjectile(ScriptPlayerProjectile p) => p.gameObject.SetActive(false);
+
+    private void OnDestroyProjectile(ScriptPlayerProjectile p) => Destroy(p.gameObject);
+
+    private void Update()
     {
-        
+        /*
+        if (ScriptGameManager.Instance != null &&
+            ScriptGameManager.Instance.State != ScriptGameManager.GameState.Playing)
+            return;
+        */
+
+        if (Input.GetMouseButton(0) && Time.time >= nextFireTime)
+        {
+            Fire();
+            nextFireTime = Time.time + (1f / fireRate);
+        }
+    }
+
+    private void Fire()
+    {
+        if (launchers == null || launchers.Length == 0 || crosshairHandlerScript == null) return;
+
+        Transform launcher = launchers[launcherIndex];
+        launcherIndex = (launcherIndex + 1) % launchers.Length;
+
+        Vector3 direction = (crosshairHandlerScript.AimPoint - launcher.position).normalized;
+
+        ScriptPlayerProjectile shot = pool.Get();
+        shot.Launch(launcher.position, direction);
+
+        PlayFireEffects();
+    }
+
+    private void PlayFireEffects()
+    {
+        if (flashes != null)
+        {
+            foreach (var flash in flashes)
+                if (flash != null) flash.Play();
+        }
+
+        if (fireSfx != null)
+            audioSource.PlayOneShot(fireSfx, fireSfxVolume);
     }
 }
